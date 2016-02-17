@@ -1,28 +1,85 @@
 var app = angular.module('flashCards', []);
 
-app.value('whateverName', [
-    {
-        question: 'C. What is Angular?',
-        answers: [
-            { text: 'A front-end framework for great power!', correct: true },
-            { text: 'Something lame, who cares, whatever.', correct: false },
-            { text: 'Some kind of fish, right?', correct: false }
-        ]
-    },
-    {
-        question: 'A. What is a controller?',
-        answers: [
-            { text: 'Something that manages my front-end routes', correct: false },
-            { text: 'A function that allows me to manage a scope', correct: true },
-            { text: 'An Angular template', correct: false }
-        ]
-    },
-    {
-        question: 'B. What does {{ }} do?',
-        answers: [
-            { text: 'It runs some Javascript', correct: false },
-            { text: 'It looks for variables in HTML', correct: false },
-            { text: 'It runs an Angular expression that accesses my $scope', correct: true }
-        ]
-    }
-]);
+app.factory('FlashCardsFactory', function($http){
+    return {
+        getFlashCards: function (category) {
+           var queryParams = {};
+
+            if (category) {
+                queryParams.category = category;
+            }
+
+            return $http.get('/cards', {
+                params: queryParams
+            }).then(function (response) {
+                return response.data;
+            });
+        }
+    };
+})
+
+app.factory('ScoreFactory', function () {
+
+    return {
+        correct: 0,
+        incorrect: 0
+    };
+
+});
+
+app.directive('loader', function () {
+    return {
+        restrict: 'E',
+        template: '<img src="https://fjc.ru/wp-content/themes/fjc/img/ajax-loader-event-list.gif" />'
+    };
+});
+
+app.directive('borderOnHover', function () {
+    return {
+        restrict: 'A',
+        link: function (scope,element,attr) {
+            element.on('mouseenter', function () {
+                element.css({"border-color":"#85c222"});
+            });
+        }
+    };
+});
+
+app.directive('flashCards', function (FlashCardsFactory, ScoreFactory) {
+    return {
+        restrict: 'E',
+        templateUrl: '/flashcard.html',
+        link: function (scope, elem, attrs) {
+            FlashCardsFactory.getFlashCards().then(function (flashCards) {
+                scope.flashCards = flashCards;
+            });
+
+            scope.answerQuestion = function (answer, flashCard) {
+                if (!flashCard.answered) {
+                    flashCard.answered = true;
+                    flashCard.answeredCorrectly = answer.correct;
+                    if (flashCard.answeredCorrectly) {
+                        ScoreFactory.correct++
+                    } else ScoreFactory.incorrect++
+                }
+            }
+
+            scope.getCategoryCards = function (category) {
+                FlashCardsFactory.getFlashCards(category)
+                .then(function (flashCards) {
+                    scope.flashCards = flashCards
+                    scope.currentCat = category
+                });
+            }
+
+            scope.reset = function () {
+                FlashCardsFactory.getFlashCards().then(function (flashCards) {
+                    scope.flashCards = flashCards
+                    scope.currentCat = null;
+                });
+            }
+        }
+    };
+});
+
+
